@@ -244,7 +244,10 @@
     <div id="sidebar">
         <div id="sidebar-head">
             <div><h3 id="vault-name">Magmabase</h3><span class="count" id="file-count">0 notes</span></div>
-            <button id="btn-new" title="New note">＋</button>
+            <div style="display:flex;gap:2px">
+              <button id="btn-vault" title="Change vault folder">📂</button>
+              <button id="btn-new" title="New note">＋</button>
+            </div>
         </div>
         <input id="sidebar-search" type="text" placeholder="Search notes..." />
         <div id="file-list"></div>
@@ -942,6 +945,43 @@
         document.getElementById('fs-btn').addEventListener('click',()=>{
           if(!document.fullscreenElement){document.documentElement.requestFullscreen();}
           else{document.exitFullscreen();}
+        });
+
+        // ─── Vault folder picker ────────────────────────────────
+        document.getElementById('btn-vault').addEventListener('click', async () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.setAttribute('webkitdirectory', '');
+          input.style.display = 'none';
+          document.body.appendChild(input);
+          input.addEventListener('change', async () => {
+            document.body.removeChild(input);
+            const filesList = input.files;
+            if (!filesList || filesList.length === 0) return;
+            const mdFiles = [];
+            for (let i = 0; i < filesList.length; i++) {
+              const file = filesList[i];
+              if (file.name.endsWith('.md')) {
+                mdFiles.push({ name: file.name, file });
+              }
+            }
+            if (mdFiles.length === 0) { showToast('No .md files found', '⚠️'); return; }
+            for (const mf of mdFiles) {
+              const content = await mf.file.text();
+              const safeName = mf.name.replace(/\.md$/, '');
+              try {
+                await API.post('/api/files', { name: safeName, content });
+              } catch (e) {
+                const existing = files.find(f => f.name === safeName);
+                if (existing) {
+                  await API.put('/api/files/' + encodeURIComponent(existing.path), { content });
+                }
+              }
+            }
+            await loadData();
+            showToast(`Loaded ${mdFiles.length} notes from folder`);
+          });
+          input.click();
         });
 
         function renderFileList(filter) {

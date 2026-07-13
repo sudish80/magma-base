@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── Configuration ────────────────────────────────────────────
-const VAULT_PATH = path.resolve(process.argv.includes('--vault')
+let VAULT_PATH = path.resolve(process.argv.includes('--vault')
   ? process.argv[process.argv.indexOf('--vault') + 1]
   : path.join(__dirname, 'vault'));
 const PORT = process.env.PORT || 3030;
@@ -407,6 +407,22 @@ app.get('/api/backlinks/:name(*)', (req, res) => {
 });
 
 // ─── Serve frontend for all other routes ─────────────────────
+// ─── Vault path management ───────────────────────────────────
+let vaultLock = false; // prevent concurrent re-scans
+
+app.post('/api/vault', (req, res) => {
+  const newPath = req.body.path;
+  if (!newPath) return res.status(400).json({ error: 'Path required' });
+  const resolved = path.resolve(newPath);
+  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Directory not found' });
+  if (!fs.statSync(resolved).isDirectory()) return res.status(400).json({ error: 'Not a directory' });
+  // Update vault
+  VAULT_PATH = resolved;
+  if (watcher) watcher.close();
+  scanVault();
+  startWatcher();
+  res.json({ vault: VAULT_PATH, fileCount: fileIndex.size, message: 'Vault updated' });
+});
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
