@@ -180,11 +180,57 @@
         #tag-list .tag-item .tag-count{font-size:10px;opacity:0.7;margin-left:2px}
 
         /* Context menu */
-        #ctx-menu{position:fixed;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:none;font-size:12px}
+        #ctx-menu{position:fixed;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 0;min-width:150px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:none;font-size:12px}
         #ctx-menu .ctx-item{padding:6px 14px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px;border:none;background:none;width:100%;text-align:left;font-family:var(--font);font-size:12px}
         #ctx-menu .ctx-item:hover{background:var(--accent-muted)}
         #ctx-menu .ctx-item.ctx-danger{color:var(--red)}
         #ctx-menu .ctx-item.ctx-danger:hover{background:rgba(224,108,117,0.15)}
+
+        /* Edit mode */
+        #editor-textarea{display:none;flex:1;width:100%;resize:none;border:none;outline:none;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.6;padding:16px 20px}
+        #editor-textarea.show{display:block}
+        #editor-preview.hide{display:none}
+        #ed-mode-btn{border:1px solid var(--border)!important;border-radius:4px!important;font-size:10px!important;padding:0 6px!important;width:auto!important;color:var(--text-muted)!important;letter-spacing:0.5px}
+        #ed-mode-btn:hover{background:rgba(255,255,255,0.06)!important}
+
+        /* Find overlay */
+        #find-overlay{position:absolute;top:0;right:14px;z-index:60;display:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;gap:6px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+        #find-overlay.show{display:flex}
+        #find-input{padding:3px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:160px}
+        #find-input:focus{border-color:var(--accent)}
+        #find-count{font-size:11px;color:var(--text-dim);white-space:nowrap}
+        #find-overlay button{background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer;padding:2px 4px;border-radius:3px}
+        #find-overlay button:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+        .hl-match{background:var(--orange);color:#000;border-radius:2px;padding:0 2px}
+        .hl-active{background:var(--accent);color:#fff;border-radius:2px;padding:0 2px}
+
+        /* Recent notes */
+        #recent-section{border-top:1px solid var(--border);padding:6px 0;flex-shrink:0;max-height:120px;overflow-y:auto}
+        #recent-section .recent-hdr{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;padding:4px 14px}
+        .recent-item{padding:3px 14px;font-size:12px;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+        .recent-item:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+        .recent-item .ri-icon{font-size:10px;opacity:0.6}
+
+        /* Status bar */
+        #status-bar{position:fixed;bottom:0;left:0;right:0;height:22px;z-index:95;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:14px;font-size:10px;color:var(--text-dim)}
+        #status-bar .sb-right{margin-left:auto;display:flex;gap:14px}
+        .sb-online{color:var(--green)}
+        .sb-offline{color:var(--red)}
+
+        /* Light theme */
+        :root.light{--bg:#f8f9fa;--sidebar:#ffffff;--surface:#f0f0f0;--border:#ddd;--text:#222;--text-muted:#666;--text-dim:#999;--accent:#4a6fa5;--accent-hover:#3a5f95;--accent-muted:rgba(74,111,165,0.12)}
+        #theme-btn{font-size:14px!important}
+
+        /* Orphan indicator */
+        .fi-orphan{font-size:9px;color:var(--text-dim);margin-left:auto;opacity:0.5}
+
+        /* Loading skeleton */
+        .skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--border) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        #file-list.loading .file-item-skeleton{height:28px;margin:2px 14px;border-radius:4px}
+
+        /* Word count */
+        #word-count{font-size:10px;color:var(--text-dim);white-space:nowrap}
     </style>
 </head>
 <body>
@@ -193,6 +239,7 @@
 
     <button id="sidebar-btn">☰</button>
     <button id="fs-btn" title="Toggle fullscreen">⛶</button>
+    <button id="theme-btn" title="Toggle theme" style="position:fixed;top:12px;right:56px;z-index:100;background:rgba(30,30,30,0.85);border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:16px;backdrop-filter:blur(6px);transition:all 0.15s">☀</button>
 
     <div id="sidebar">
         <div id="sidebar-head">
@@ -205,6 +252,10 @@
           <div class="tag-hdr">Tags <span id="tag-toggle" style="cursor:pointer;font-size:10px;margin-left:4px;color:var(--text-dim)">▾ hide</span></div>
           <div id="tag-list"></div>
         </div>
+        <div id="recent-section" style="display:none">
+          <div class="recent-hdr">Recent</div>
+          <div id="recent-list"></div>
+        </div>
     </div>
 
     <div id="editor">
@@ -213,9 +264,20 @@
             <span class="eb-name" id="ed-name"></span>
             <span class="eb-status" id="ed-status"></span>
             <div class="eb-spacer"></div>
+            <span id="word-count"></span>
+            <div id="find-overlay">
+              <input id="find-input" type="text" placeholder="Find in note..." />
+              <span id="find-count"></span>
+              <button id="find-prev" title="Previous">▲</button>
+              <button id="find-next" title="Next">▼</button>
+              <button id="find-close" title="Close">✕</button>
+            </div>
+            <button id="ed-mode-btn" title="Toggle edit mode">Edit</button>
+            <button id="ed-find-btn" title="Find (Ctrl+F)">🔍</button>
             <button id="ed-refresh" title="Reload from disk">↻</button>
             <button id="ed-close" title="Close (Esc)">✕</button>
         </div>
+        <textarea id="editor-textarea" spellcheck="true"></textarea>
         <div id="editor-preview" class="preview"></div>
         <div id="editor-backlinks"></div>
     </div>
@@ -225,10 +287,18 @@
         <span id="hud-links"></span>
     </div>
 
+    <div id="status-bar">
+      <span id="sb-status" class="sb-online">● Connected</span>
+      <span id="sb-files">0 notes</span>
+      <span id="sb-links">0 links</span>
+      <div class="sb-right"><span id="sb-words">0 words</span></div>
+    </div>
+
     <div id="toast"></div>
 
     <div id="ctx-menu" style="display:none">
       <button class="ctx-item" data-action="open">Open</button>
+      <button class="ctx-item" data-action="duplicate">Duplicate</button>
       <button class="ctx-item" data-action="rename">Rename</button>
       <button class="ctx-item ctx-danger" data-action="delete">Delete</button>
       <button class="ctx-item" data-action="copylink">Copy Link</button>
@@ -406,16 +476,20 @@
             edgeLines.push(line);
           }
 
+          const now = Date.now();
           const geo = new THREE.BoxGeometry(0.7, 0.01, 0.9);
           filesData.forEach((f, i) => {
             const p = pos[i];
-            const hue = (f.tags && f.tags.includes('architecture')) ? 0.58 :
+            // Age-based hue: newer = green (0.3), older = red/orange (0.05)
+            const ageDays = f.mtime ? (now - f.mtime) / 86400000 : 999;
+            const ageHue = Math.max(0.05, 0.32 - ageDays * 0.002);
+            const tagHue = (f.tags && f.tags.includes('architecture')) ? 0.58 :
                         (f.tags && (f.tags.includes('api')||f.tags.includes('backend'))) ? 0.55 :
                         (f.tags && (f.tags.includes('devops')||f.tags.includes('docker'))) ? 0.5 :
                         (f.tags && f.tags.includes('testing')) ? 0.12 :
                         (f.tags && f.tags.includes('planning')) ? 0.0 : 0.08;
+            const hue = f.mtime ? (tagHue * 0.4 + ageHue * 0.6) : tagHue;
             const lightness = 0.70 + hash(f.name+'light')*0.12;
-            const color = new THREE.Color().setHSL(hue, 0.3, lightness);
             const mat = new THREE.MeshStandardMaterial({
               color, roughness:0.6+hash(f.name+'rough')*0.3,
               emissive: color.clone().multiplyScalar(0.06),
@@ -435,6 +509,27 @@
             page.castShadow = true;
             pageGroup.add(page);
             floatingPages.push(page);
+
+            // Node label sprite
+            const labelCanvas = document.createElement('canvas');
+            labelCanvas.width = 256; labelCanvas.height = 48;
+            const lctx = labelCanvas.getContext('2d');
+            lctx.fillStyle = 'rgba(30,30,30,0.7)';
+            lctx.roundRect ? lctx.roundRect(4,4,248,40,6) : 0;
+            if (lctx.roundRect) { lctx.fill(); } else { lctx.fillRect(4,4,248,40); }
+            lctx.fillStyle = '#dcddde';
+            lctx.font = 'bold 16px Inter, sans-serif';
+            lctx.textAlign = 'center'; lctx.textBaseline = 'middle';
+            const label = f.name.length > 18 ? f.name.slice(0,16)+'…' : f.name;
+            lctx.fillText(label, 128, 24);
+            const tex = new THREE.CanvasTexture(labelCanvas);
+            tex.needsUpdate = true;
+            const sprMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, opacity: 0.85 });
+            const spr = new THREE.Sprite(sprMat);
+            spr.position.set(p.x, p.y + 0.45, p.z);
+            spr.scale.set(0.8, 0.15, 1);
+            spr.userData = { parentPath: f.path };
+            pageGroup.add(spr);
           });
           refreshClickables();
         }
@@ -529,6 +624,14 @@
             ctxMenu.style.display = 'none';
             if (action === 'open') {
               openNote(ctxFile.path);
+            } else if (action === 'duplicate') {
+              try {
+                const data = await API.get('/api/files/' + encodeURIComponent(ctxFile.path));
+                const newName = ctxFile.name + ' (copy)';
+                await API.post('/api/files', { name: newName, content: data.content });
+                await loadData();
+                showToast(`Duplicated as "${newName}"`);
+              } catch(e) { showToast('Error duplicating', '⚠️'); }
             } else if (action === 'rename') {
               const newName = prompt('New name (without .md):', ctxFile.name);
               if (!newName || newName === ctxFile.name) return;
@@ -575,17 +678,39 @@
           return '<p>'+h.replace(/\n\n/g,'</p><p>')+'</p>';
         }
 
-        // ─── Editor (read-only preview) ──────────────────────────
+        // ─── Editor ──────────────────────────────────────────────
         const ed=document.getElementById('editor');
         const edName=document.getElementById('ed-name');
         const edStatus=document.getElementById('ed-status');
         const edPreview=document.getElementById('editor-preview');
+        const edTextarea=document.getElementById('editor-textarea');
         const edClose=document.getElementById('ed-close');
         const edRefresh=document.getElementById('ed-refresh');
+        const edModeBtn=document.getElementById('ed-mode-btn');
+        const edFindBtn=document.getElementById('ed-find-btn');
         const edBL=document.getElementById('editor-backlinks');
+        const wordCountEl=document.getElementById('word-count');
+        let editMode = false;
+        let saveTimer = null;
+        let noteContent = '';
+        let noteFilePath = '';
+
+        function getWordCount(text) {
+          const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+          return words;
+        }
+
+        function updateWordCount() {
+          const text = editMode ? edTextarea.value : (noteContent || '');
+          const wc = getWordCount(text);
+          const cc = text.length;
+          wordCountEl.textContent = `${wc}w · ${cc}c`;
+          document.getElementById('sb-words').textContent = `${wc} words`;
+        }
 
         async function openNote(path) {
           openPath = path;
+          noteFilePath = path;
           let f = fileMap.get(path);
           if (!f) { f = files.find(fi => fi.path === path || fi.name === path); }
           if (!f) { showToast('File not found: ' + path, '⚠️'); return; }
@@ -593,11 +718,19 @@
           editorJustOpened = true; setTimeout(() => { editorJustOpened = false; }, 100);
           edName.textContent = f.name;
           edStatus.textContent = 'Loading...';
-          try {
+          addRecent(f.name, f.path);
+            try {
             const data = await API.get('/api/files/' + encodeURIComponent(path));
-            edPreview.innerHTML = renderMD(data.content || '');
+            noteContent = data.content || '';
+            edPreview.innerHTML = renderMD(noteContent);
+            // Highlight sidebar search term in preview
+            const sq = sbSearch.value.trim();
+            if (sq) highlightInPreview(sq);
             edPreview.classList.add('show');
+            edTextarea.value = noteContent;
+            updateWordCount();
             edStatus.textContent = '';
+            if (editMode) { edPreview.classList.remove('show'); edTextarea.classList.add('show'); }
             // Bind wiki clicks
             edPreview.querySelectorAll('.wl[data-idx]').forEach(el => {
               el.addEventListener('click', () => {
@@ -620,10 +753,63 @@
           if (sel) sel.classList.add('active');
         }
 
-        edClose.addEventListener('click',()=>{ed.classList.remove('open');openPath=null;});
-        edRefresh.addEventListener('click',async ()=>{if(openPath){const data=await API.get('/api/files/'+encodeURIComponent(openPath));edPreview.innerHTML=renderMD(data.content||'');edStatus.textContent='';}});
+        // Edit mode toggle
+        edModeBtn.addEventListener('click', () => {
+          editMode = !editMode;
+          edModeBtn.textContent = editMode ? 'Preview' : 'Edit';
+          edModeBtn.style.background = editMode ? 'var(--accent-muted)' : '';
+          if (editMode) {
+            edPreview.classList.remove('show');
+            edTextarea.classList.add('show');
+            edTextarea.focus();
+          } else {
+            edTextarea.classList.remove('show');
+            edPreview.innerHTML = renderMD(edTextarea.value);
+            edPreview.classList.add('show');
+            noteContent = edTextarea.value;
+            updateWordCount();
+          }
+        });
 
-        document.addEventListener('keydown',e=>{if(e.key==='Escape'){ed.classList.remove('open');openPath=null;}});
+        // Auto-save
+        edTextarea.addEventListener('input', () => {
+          updateWordCount();
+          if (saveTimer) clearTimeout(saveTimer);
+          saveTimer = setTimeout(async () => {
+            if (!openPath) return;
+            try {
+              await API.put('/api/files/' + encodeURIComponent(openPath), { content: edTextarea.value });
+              noteContent = edTextarea.value;
+              edStatus.textContent = 'Saved';
+              setTimeout(() => { if (edStatus.textContent === 'Saved') edStatus.textContent = ''; }, 1500);
+            } catch(e) { edStatus.textContent = 'Save failed'; }
+          }, 800);
+        });
+
+        edClose.addEventListener('click',()=>{ed.classList.remove('open');openPath=null;});
+        edRefresh.addEventListener('click',async ()=>{if(openPath){const data=await API.get('/api/files/'+encodeURIComponent(openPath));noteContent=data.content||'';edPreview.innerHTML=renderMD(noteContent);edTextarea.value=noteContent;updateWordCount();edStatus.textContent='';}});
+
+        document.addEventListener('keydown',e=>{
+          if(e.key==='Escape'){
+            if (findOverlay.classList.contains('show')) { hideFind(); return; }
+            if (editMode) { edModeBtn.click(); return; }
+            ed.classList.remove('open'); openPath = null;
+          }
+          if (e.key === 'f' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (ed.classList.contains('open')) showFind();
+          }
+          if (e.key === 's' && (e.ctrlKey || e.metaKey) && editMode) {
+            e.preventDefault();
+            if (saveTimer) clearTimeout(saveTimer);
+            if (openPath) {
+              API.put('/api/files/' + encodeURIComponent(openPath), { content: edTextarea.value });
+              noteContent = edTextarea.value;
+              edStatus.textContent = 'Saved';
+              setTimeout(() => { if (edStatus.textContent === 'Saved') edStatus.textContent = ''; }, 1500);
+            }
+          }
+        });
 
         // Click outside editor to close
         let editorJustOpened = false;
@@ -634,6 +820,114 @@
           ed.classList.remove('open');
           openPath = null;
         });
+
+        // ─── Find in Note ─────────────────────────────────────────
+        const findOverlay = document.getElementById('find-overlay');
+        const findInput = document.getElementById('find-input');
+        const findCount = document.getElementById('find-count');
+        const findPrev = document.getElementById('find-prev');
+        const findNext = document.getElementById('find-next');
+        const findClose = document.getElementById('find-close');
+        let findMatches = [];
+        let findIdx = -1;
+
+        function showFind() {
+          findOverlay.classList.add('show');
+          findInput.value = '';
+          findCount.textContent = '';
+          findMatches = [];
+          findIdx = -1;
+          setTimeout(() => findInput.focus(), 50);
+        }
+
+        function hideFind() {
+          findOverlay.classList.remove('show');
+          clearHighlights();
+        }
+
+        function clearHighlights() {
+          edPreview.querySelectorAll('.hl-match, .hl-active').forEach(el => {
+            const parent = el.parentNode;
+            if (parent) {
+              parent.replaceChild(document.createTextNode(el.textContent), el);
+              parent.normalize();
+            }
+          });
+        }
+
+        function doFind() {
+          const q = findInput.value.trim();
+          if (!q) { findCount.textContent = ''; clearHighlights(); findMatches = []; return; }
+          clearHighlights();
+          const container = edPreview;
+          const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+          const textNodes = [];
+          while (walker.nextNode()) textNodes.push(walker.currentNode);
+          findMatches = [];
+          const lower = q.toLowerCase();
+          textNodes.forEach(node => {
+            const txt = node.textContent;
+            const idx = txt.toLowerCase().indexOf(lower);
+            if (idx === -1) return;
+            const span = document.createElement('span');
+            span.className = 'hl-match';
+            span.textContent = txt.substring(idx, idx + q.length);
+            const after = txt.substring(idx + q.length);
+            const before = txt.substring(0, idx);
+            const frag = document.createDocumentFragment();
+            frag.appendChild(document.createTextNode(before));
+            frag.appendChild(span);
+            if (after) frag.appendChild(document.createTextNode(after));
+            node.parentNode.replaceChild(frag, node);
+            findMatches.push(span);
+          });
+          if (findMatches.length === 0) {
+            findCount.textContent = 'No matches';
+            findIdx = -1;
+          } else {
+            findIdx = 0;
+            updateFindHighlight();
+            findCount.textContent = `1/${findMatches.length}`;
+          }
+        }
+
+        function updateFindHighlight() {
+          findMatches.forEach((el,i) => {
+            el.className = i === findIdx ? 'hl-active' : 'hl-match';
+            if (i === findIdx) el.scrollIntoView({ block: 'center' });
+          });
+        }
+
+        findInput.addEventListener('input', doFind);
+        findInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (e.shiftKey) findPrev.click(); else findNext.click(); } });
+        findNext.addEventListener('click', () => { if (findMatches.length) { findIdx = (findIdx + 1) % findMatches.length; updateFindHighlight(); findCount.textContent = `${findIdx+1}/${findMatches.length}`; } });
+        findPrev.addEventListener('click', () => { if (findMatches.length) { findIdx = (findIdx - 1 + findMatches.length) % findMatches.length; updateFindHighlight(); findCount.textContent = `${findIdx+1}/${findMatches.length}`; } });
+        findClose.addEventListener('click', hideFind);
+        edFindBtn.addEventListener('click', showFind);
+
+        // ─── Search Highlight in Preview ─────────────────────────
+        function highlightInPreview(term) {
+          if (!term) return;
+          const q = term.toLowerCase();
+          const container = edPreview;
+          const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+          const nodes = [];
+          while (walker.nextNode()) nodes.push(walker.currentNode);
+          nodes.forEach(node => {
+            const txt = node.textContent;
+            const idx = txt.toLowerCase().indexOf(q);
+            if (idx === -1) return;
+            const span = document.createElement('span');
+            span.className = 'hl-match';
+            span.textContent = txt.substring(idx, idx + q.length);
+            const frag = document.createDocumentFragment();
+            frag.appendChild(document.createTextNode(txt.substring(0, idx)));
+            frag.appendChild(span);
+            const after = txt.substring(idx + q.length);
+            if (after) frag.appendChild(document.createTextNode(after));
+            node.parentNode.replaceChild(frag, node);
+          });
+        }
 
         // ─── Sidebar ─────────────────────────────────────────────
         const sb=document.getElementById('sidebar');
@@ -662,7 +956,8 @@
             if(f.path===openPath)el.classList.add('active');
             el.dataset.path=f.path;
             const bl=f.links?f.links.length:0;
-            el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}`;
+            const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
+            el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanolLabel}`;
             el.addEventListener('click',()=>openNote(f.path));
             fileListEl.appendChild(el);
           });
@@ -692,11 +987,80 @@
           }, 250);
         });
 
-        newBtn.addEventListener('click',async()=>{
-          const name=prompt('Note name:');
-          if(!name)return;
-          try{const r=await API.post('/api/files',{name});await loadData();showToast(`Created "${name}"`);openNote(r.path);}catch(e){showToast('Error creating note','⚠️');}
+        // ─── Note Templates ──────────────────────────────────────
+        const TEMPLATES = {
+          'Empty': '',
+          'Journal': `# ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n## Today\n\n- \n\n## Notes\n\n`,
+          'Meeting Notes': `# Meeting: \n\n**Date:** ${new Date().toLocaleDateString()}\n**Attendees:** \n\n## Agenda\n\n1. \n\n## Discussion\n\n\n## Action Items\n\n- [ ] \n`,
+          'Task List': `# Tasks\n\n## Today\n\n- [ ] \n\n## This Week\n\n- [ ] \n\n## Backlog\n\n- [ ] \n`,
+        };
+
+        newBtn.addEventListener('click', async () => {
+          const templateKeys = Object.keys(TEMPLATES);
+          const tpl = prompt(`Note name (optional — type name, or just OK for empty):`);
+          if (tpl === null) return;
+          const parts = tpl.split('::');
+          let name = parts[0].trim() || 'Untitled';
+          let templateKey = parts[1] ? parts[1].trim() : '';
+          if (!templateKey) {
+            const choice = prompt(`Pick template: ${templateKeys.join(', ')}`);
+            if (choice && TEMPLATES[choice]) templateKey = choice;
+          }
+          const content = TEMPLATES[templateKey] || '';
+          try {
+            const r = await API.post('/api/files', { name, content });
+            await loadData();
+            showToast(`Created "${name}"`);
+            openNote(r.path);
+          } catch(e) { showToast('Error creating note', '⚠️'); }
         });
+
+        // ─── Theme Toggle ─────────────────────────────────────────
+        const themeBtn = document.getElementById('theme-btn');
+        let isLight = localStorage.getItem('mb-theme') === 'light';
+        if (isLight) { document.documentElement.classList.add('light'); themeBtn.textContent = '🌙'; }
+        themeBtn.addEventListener('click', () => {
+          isLight = !isLight;
+          document.documentElement.classList.toggle('light', isLight);
+          themeBtn.textContent = isLight ? '🌙' : '☀';
+          localStorage.setItem('mb-theme', isLight ? 'light' : 'dark');
+        });
+
+        // ─── Recent Notes (localStorage) ─────────────────────────
+        function getRecent() {
+          try { return JSON.parse(localStorage.getItem('mb-recent') || '[]'); } catch { return []; }
+        }
+        function addRecent(name, path) {
+          let rec = getRecent().filter(r => r.path !== path);
+          rec.unshift({ name, path, ts: Date.now() });
+          if (rec.length > 10) rec = rec.slice(0, 10);
+          localStorage.setItem('mb-recent', JSON.stringify(rec));
+          renderRecent();
+        }
+        function renderRecent() {
+          const rec = getRecent();
+          const el = document.getElementById('recent-section');
+          const list = document.getElementById('recent-list');
+          if (rec.length === 0) { el.style.display = 'none'; return; }
+          el.style.display = '';
+          list.innerHTML = rec.map(r =>
+            `<div class="recent-item" data-path="${CSS.escape(r.path)}"><span class="ri-icon">↩</span>${r.name}</div>`
+          ).join('');
+          list.querySelectorAll('.recent-item').forEach(it => {
+            it.addEventListener('click', () => openNote(it.dataset.path));
+          });
+        }
+
+        // ─── Status Bar ───────────────────────────────────────────
+        const sbStatus = document.getElementById('sb-status');
+        const sbFiles = document.getElementById('sb-files');
+        const sbLinks = document.getElementById('sb-links');
+        function updateStatusBar(connected) {
+          sbStatus.textContent = connected ? '● Connected' : '○ Offline';
+          sbStatus.className = connected ? 'sb-online' : 'sb-offline';
+          if (files) sbFiles.textContent = `${files.length} note${files.length!==1?'s':''}`;
+          if (edges) sbLinks.textContent = `${edges.length} link${edges.length!==1?'s':''}`;
+        }
 
         // ─── Toast ───────────────────────────────────────────────
         const toast=document.getElementById('toast');
@@ -745,16 +1109,23 @@
             files.forEach(f => fileMap.set(f.path, f));
             const graph = await API.get('/api/graph');
             edges = graph.edges || [];
+            // Compute orphan data
+            const linkedSet = new Set();
+            edges.forEach(e => { linkedSet.add(e.source); linkedSet.add(e.target); });
+            files.forEach(f => f._orphan = f.path && !linkedSet.has(f.path));
             buildGraph(files, edges);
             renderFileList(sbSearch.value);
             tagData = await API.get('/api/tags');
             renderTagCloud();
             document.getElementById('hud-count').textContent = `${files.length} note${files.length!==1?'s':''}`;
             document.getElementById('hud-links').textContent = `${edges.length} connection${edges.length!==1?'s':''}`;
+            renderRecent();
+            updateStatusBar(true);
             return true;
           } catch(e) {
             document.getElementById('hud-count').textContent = 'Offline';
             document.getElementById('hud-links').textContent = '';
+            updateStatusBar(false);
             showToast('Cannot reach server. Is the backend running?', '⚠️');
             return false;
           }
@@ -785,6 +1156,8 @@
               renderTagCloud();
               document.getElementById('hud-count').textContent = `${files.length} note${files.length!==1?'s':''}`;
               document.getElementById('hud-links').textContent = `${edges.length} connection${edges.length!==1?'s':''}`;
+              renderRecent();
+              updateStatusBar(true);
               // Reload open note if changed externally
               if (openPath && edPreview.innerHTML) {
                 const data = await API.get('/api/files/' + encodeURIComponent(openPath));
@@ -827,6 +1200,8 @@
         async function init() {
           const ok = await loadData();
           if (ok) showToast(`Loaded ${files.length} notes`, '✦');
+          updateStatusBar(true);
+          renderRecent();
           animate();
           // Poll for external changes every 3s
           setInterval(pollChanges, 3000);
