@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Magmabase – Fullstack Knowledge Base</title>
+    <style>
+        :root {
+            --bg: #1e1e1e; --sidebar: #252525; --surface: #2a2a2a;
+            --border: #3a3a3a; --text: #dcddde; --text-muted: #7f7f7f;
+            --text-dim: #5a5a5a; --accent: #6c8ccf; --accent-hover: #7ea3e6;
+            --accent-muted: rgba(108,140,207,0.15); --green: #98c379;
+            --orange: #d19a66; --purple: #c678dd; --cyan: #56b6c2; --red: #e06c75;
+            --font: 'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+            --mono: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace;
+            --radius: 8px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{margin:0;overflow:hidden;background:var(--bg);font-family:var(--font);color:var(--text)}
+        button{font-family:var(--font);cursor:pointer}
+        canvas{display:block;pointer-events:auto;touch-action:none}
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+        #sidebar-btn{
+            position:fixed;top:12px;left:12px;z-index:100;
+            background:rgba(30,30,30,0.85);border:1px solid var(--border);
+            color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius);
+            display:flex;align-items:center;justify-content:center;
+            font-size:18px;backdrop-filter:blur(6px)
+        }
+        #sidebar-btn:hover{background:var(--surface);color:var(--text)}
+        #fs-btn{
+            position:fixed;top:12px;right:12px;z-index:100;
+            background:rgba(30,30,30,0.85);border:1px solid var(--border);
+            color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius);
+            display:flex;align-items:center;justify-content:center;
+            font-size:16px;backdrop-filter:blur(6px);transition:all 0.15s
+        }
+        #fs-btn:hover{background:var(--surface);color:var(--text)}
+
+        #sidebar{
+            position:fixed;top:0;left:0;width:280px;height:100vh;
+            background:var(--sidebar);border-right:1px solid var(--border);
+            z-index:90;transform:translateX(-100%);
+            transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);
+            display:flex;flex-direction:column
+        }
+        #sidebar.open{transform:translateX(0)}
+        #sidebar-head{
+            padding:12px 14px 10px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;justify-content:space-between
+        }
+        #sidebar-head h3{font-size:13px;font-weight:600}
+        #sidebar-head .count{font-size:11px;color:var(--text-dim)}
+        #sidebar-head button{
+            background:none;border:none;color:var(--text-muted);font-size:18px;
+            width:28px;height:28px;border-radius:4px;display:flex;
+            align-items:center;justify-content:center
+        }
+        #sidebar-head button:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+        #sidebar-search{
+            margin:8px 12px;padding:6px 10px;background:var(--bg);
+            border:1px solid var(--border);border-radius:6px;color:var(--text);
+            font-size:12px;font-family:var(--font);outline:none;
+            width:calc(100% - 24px)
+        }
+        #sidebar-search::placeholder{color:var(--text-dim)}
+        #sidebar-search:focus{border-color:var(--accent)}
+        #file-list{flex:1;overflow-y:auto;padding:4px 0}
+        .file-item{
+            display:flex;align-items:center;gap:7px;padding:5px 14px;
+            cursor:pointer;font-size:13px;color:var(--text);
+            transition:background 0.1s;border-left:3px solid transparent
+        }
+        .file-item:hover{background:rgba(255,255,255,0.04)}
+        .file-item.active{background:var(--accent-muted);border-left-color:var(--accent)}
+        .file-item .fi-icon{font-size:13px;width:16px;text-align:center}
+        .file-item .fi-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .file-item .fi-links{font-size:10px;color:var(--text-dim);margin-left:auto}
+
+        /* --- Editor --- */
+        #editor{
+            position:fixed;top:0;right:0;width:min(560px,50vw);height:100vh;
+            background:var(--bg);border-left:1px solid var(--border);
+            z-index:50;transform:translateX(100%);
+            transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            display:flex;flex-direction:column;
+            box-shadow:-10px 0 40px rgba(0,0,0,0.4)
+        }
+        #editor.open{transform:translateX(0)}
+        #editor-bar{
+            display:flex;align-items:center;gap:8px;padding:8px 14px;
+            background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0
+        }
+        #editor-bar .eb-icon{font-size:14px}
+        #editor-bar .eb-name{font-size:13px;font-weight:500}
+        #editor-bar .eb-status{font-size:11px;color:var(--text-dim);margin-left:4px}
+        #editor-bar .eb-spacer{flex:1}
+        #editor-bar button{
+            background:none;border:none;color:var(--text-muted);font-size:14px;
+            width:28px;height:28px;border-radius:4px;display:flex;
+            align-items:center;justify-content:center
+        }
+        #editor-bar button:hover{background:rgba(255,255,255,0.06);color:var(--text)}
+        #editor-preview{
+            flex:1;overflow-y:auto;padding:20px 28px;font-size:14px;line-height:1.7;
+            display:none
+        }
+        #editor-preview.show{display:block}
+
+        .preview h1{font-size:26px;margin:20px 0 10px;font-weight:600;border-bottom:1px solid var(--border);padding-bottom:6px}
+        .preview h2{font-size:20px;margin:16px 0 8px;font-weight:600}
+        .preview h3{font-size:17px;margin:14px 0 6px;font-weight:600}
+        .preview p{margin:6px 0}
+        .preview a{color:var(--accent);text-decoration:none}
+        .preview a:hover{text-decoration:underline}
+        .preview strong{font-weight:600}
+        .preview em{font-style:italic}
+        .preview code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:13px;color:var(--cyan)}
+        .preview pre{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;margin:10px 0}
+        .preview pre code{background:none;padding:0;color:var(--text)}
+        .preview blockquote{border-left:3px solid var(--accent);margin:10px 0;padding:6px 16px;color:var(--text-muted);background:rgba(255,255,255,0.015)}
+        .preview ul,.preview ol{margin:6px 0;padding-left:24px}
+        .preview li{margin:2px 0}
+        .preview hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+        .preview table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
+        .preview th,.preview td{border:1px solid var(--border);padding:5px 10px;text-align:left}
+        .preview th{background:var(--surface);font-weight:600}
+        .preview .tag{display:inline-block;background:var(--accent-muted);color:var(--accent);font-size:11px;padding:1px 7px;border-radius:4px;margin:2px}
+        .preview .wl{color:var(--accent);cursor:pointer;background:var(--accent-muted);padding:1px 6px;border-radius:3px}
+        .preview .wl:hover{background:rgba(108,140,207,0.25)}
+        .preview input[type="checkbox"]{margin-right:6px}
+
+        #editor-backlinks{
+            border-top:1px solid var(--border);flex-shrink:0;
+            max-height:140px;overflow-y:auto;background:var(--surface)
+        }
+        #editor-backlinks .bl-hdr{font-size:11px;color:var(--text-dim);padding:6px 14px;text-transform:uppercase;letter-spacing:1px}
+        #editor-backlinks .bl-it{padding:4px 14px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+        #editor-backlinks .bl-it:hover{background:var(--accent-muted)}
+
+        /* --- Toast --- */
+        #toast{
+            position:fixed;bottom:70px;left:50%;transform:translateX(-50%);
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:8px;padding:8px 18px;color:var(--text);
+            font-size:12px;z-index:999;opacity:0;transition:opacity 0.25s;
+            pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:nowrap
+        }
+        #toast.show{opacity:1}
+
+        /* HUD */
+        #hud{
+            position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+            display:flex;gap:10px;z-index:20;pointer-events:none;
+            background:rgba(30,30,30,0.7);backdrop-filter:blur(6px);
+            padding:5px 16px;border-radius:8px;border:1px solid var(--border)
+        }
+        #hud span{font-size:11px;color:var(--text-muted)}
+        #hud .hud-accent{color:var(--accent)}
+
+        #graph-label{
+            position:fixed;top:16px;left:50%;transform:translateX(-50%);
+            font-size:11px;color:var(--text-dim);z-index:20;
+            background:rgba(30,30,30,0.7);backdrop-filter:blur(6px);
+            padding:4px 14px;border-radius:6px;border:1px solid var(--border);
+            pointer-events:none;user-select:none
+        }
+        #hud{pointer-events:none;user-select:none}
+        #hud span{pointer-events:none}
+    </style>
+</head>
+<body>
+
+    <div id="graph-label">click a node to open · ☰ sidebar · drag to orbit</div>
+
+    <button id="sidebar-btn">☰</button>
+    <button id="fs-btn" title="Toggle fullscreen">⛶</button>
+
+    <div id="sidebar">
+        <div id="sidebar-head">
+            <div><h3 id="vault-name">Magmabase</h3><span class="count" id="file-count">0 notes</span></div>
+            <button id="btn-new" title="New note">＋</button>
+        </div>
+        <input id="sidebar-search" type="text" placeholder="Search notes..." />
+        <div id="file-list"></div>
+    </div>
+
+    <div id="editor">
+        <div id="editor-bar">
+            <span class="eb-icon">📄</span>
+            <span class="eb-name" id="ed-name"></span>
+            <span class="eb-status" id="ed-status"></span>
+            <div class="eb-spacer"></div>
+            <button id="ed-refresh" title="Reload from disk">↻</button>
+            <button id="ed-close" title="Close (Esc)">✕</button>
+        </div>
+        <div id="editor-preview" class="preview"></div>
+        <div id="editor-backlinks"></div>
+    </div>
+
+    <div id="hud">
+        <span id="hud-count">connecting...</span>
+        <span id="hud-links"></span>
+    </div>
+
+    <div id="toast"></div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.126.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'https://unpkg.com/three@0.126.0/examples/jsm/controls/OrbitControls.js';
+
+        // ─── API Client ───────────────────────────────────────────
+        const API = {
+          async get(path) { const r=await fetch(path); if(!r.ok) throw Error(r.status); return r.json(); },
+          async post(path, body) { const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(!r.ok) throw Error(r.status); return r.json(); },
+          async put(path, body) { const r=await fetch(path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(!r.ok) throw Error(r.status); return r.json(); },
+          async del(path) { const r=await fetch(path,{method:'DELETE'}); if(!r.ok) throw Error(r.status); return r.json(); },
+        };
+
+        let files = [];          // full file list from API
+        let fileMap = new Map(); // path -> file object
+        let edges = [];
+        let openPath = null;
+
+        // ─── Three.js Scene ──────────────────────────────────────
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1e1e1e);
+
+        const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 50);
+        camera.position.set(3, 1.8, 4.5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(innerWidth, innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        renderer.domElement.style.cssText = 'position:fixed;top:0;left:0;z-index:1;cursor:pointer;touch-action:none';
+        document.body.prepend(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 0.6;
+        controls.target.set(0, 0.5, 0);
+        controls.update();
+
+        scene.add(new THREE.AmbientLight(0x40406b, 0.5));
+        const kl = new THREE.DirectionalLight(0xffeedd,1.2); kl.position.set(3,6,4); kl.castShadow=true; scene.add(kl);
+        const fl = new THREE.DirectionalLight(0x4488ff,0.6); fl.position.set(-3,2,-2); scene.add(fl);
+        const rl = new THREE.DirectionalLight(0x88aaff,0.4); rl.position.set(-1,3,-6); scene.add(rl);
+        scene.add(new THREE.PointLight(0xaaccff,0.4,12).position.set(1,3,3));
+
+        // Book
+        const bg = new THREE.Group();
+        const cM=new THREE.MeshStandardMaterial({color:0x2d5a27,roughness:0.5,metalness:0.1,emissive:0x0a1a0a,emissiveIntensity:0.15});
+        const c=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.25,1.8),cM); c.position.y=-0.1; c.castShadow=c.receiveShadow=true; bg.add(c);
+        const s=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,1.8),new THREE.MeshStandardMaterial({color:0x1e3a1a,roughness:0.6})); s.position.set(-1.3,0,0); bg.add(s);
+        const pM=new THREE.MeshStandardMaterial({color:0xf5e6c8,roughness:0.7,emissive:0x332211,emissiveIntensity:0.05,side:THREE.DoubleSide});
+        const lp=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.05,1.6),pM); lp.position.set(-0.7,0.1,0); lp.rotation.y=0.15; lp.castShadow=lp.receiveShadow=true; bg.add(lp);
+        const rp=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.05,1.6),pM); rp.position.set(0.7,0.1,0); rp.rotation.y=-0.15; rp.castShadow=rp.receiveShadow=true; bg.add(rp);
+        const gM=new THREE.MeshStandardMaterial({color:0xd4af37,roughness:0.3,metalness:0.7});
+        [2.2,0.03,0.04,0,0,0.85,-1.25].forEach((_,i)=>console.log); // noop
+        const b1=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.03,0.04),gM); b1.position.set(0,0,0.85); bg.add(b1);
+        const b2=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.03,0.04),gM); b2.position.set(0,0,-0.85); bg.add(b2);
+        const b3=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.03,1.6),gM); b3.position.set(-1.25,0,0); bg.add(b3);
+        const b4=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.03,1.6),gM); b4.position.set(1.25,0,0); bg.add(b4);
+        bg.position.y=-0.4; scene.add(bg);
+
+        // Particles
+        const pa=new Float32Array(400*3); for(let i=0;i<400;i++){pa[i*3]=(Math.random()-0.5)*22;pa[i*3+1]=(Math.random()-0.5)*12+1;pa[i*3+2]=(Math.random()-0.5)*18-2;}
+        const pm=new THREE.Points(new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(pa,3)),new THREE.PointsMaterial({color:0x6c8ccf,size:0.04,transparent:true,opacity:0.3,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+        scene.add(pm);
+        const sa=new Float32Array(60*3); for(let i=0;i<60;i++){sa[i*3]=(Math.random()-0.5)*20;sa[i*3+1]=(Math.random()-0.5)*10+1;sa[i*3+2]=(Math.random()-0.5)*16-2;}
+        const sm=new THREE.Points(new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(sa,3)),new THREE.PointsMaterial({color:0xffdd88,size:0.1,transparent:true,opacity:0.2,blending:THREE.AdditiveBlending,sizeAttenuation:true}));
+        scene.add(sm);
+
+        const rg=new THREE.Mesh(new THREE.RingGeometry(2,2.4,64),new THREE.MeshStandardMaterial({color:0x445577,transparent:true,opacity:0.08,side:THREE.DoubleSide,emissive:0x112233,emissiveIntensity:0.2}));
+        rg.rotation.x=-Math.PI/2; rg.position.y=-0.5; scene.add(rg);
+
+        // Graph containers
+        const pageGroup = new THREE.Group(); scene.add(pageGroup);
+        const edgeGroup = new THREE.Group(); scene.add(edgeGroup);
+        const floatingPages = [];
+        const edgeLines = [];
+
+        // ─── Build Graph ─────────────────────────────────────────
+        function buildGraph(filesData, edgesData) {
+          while(pageGroup.children.length) pageGroup.remove(pageGroup.children[0]);
+          while(edgeGroup.children.length) edgeGroup.remove(edgeGroup.children[0]);
+          floatingPages.length = 0;
+          edgeLines.length = 0;
+
+          if (!filesData || filesData.length === 0) return;
+          const n = filesData.length;
+          // Small deterministic hash for stable positioning across rebuilds
+          function hash(s) { let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;} return Math.abs(h)/2147483647; }
+          const spacing = 1.8 + Math.min(n, 20) * 0.25;
+          const positions = [];
+
+          filesData.forEach((f, i) => {
+            const angle = (i / n) * Math.PI * 2;
+            const r = spacing + hash(f.name+'offset') * 0.3;
+            const x = Math.cos(angle)*r;
+            const z = Math.sin(angle)*r*0.75;
+            const y = hash(f.name+'y')*1.2 + (i%3-1)*0.3;
+            positions.push({ x, y, z });
+          });
+
+          const eset = new Set();
+          const uedges = [];
+          if (edgesData) {
+            for (const e of edgesData) {
+              const key = [e.source, e.target].sort().join('::');
+              if (!eset.has(key)) { eset.add(key); uedges.push(e); }
+            }
+          }
+
+          const eMat = new THREE.LineBasicMaterial({ color: 0x6c8ccf, transparent: true, opacity: 0.15 });
+          for (const e of uedges) {
+            const si = filesData.findIndex(f => f.path === e.source);
+            const ti = filesData.findIndex(f => f.path === e.target);
+            if (si<0||ti<0) continue;
+            const p1=positions[si], p2=positions[ti];
+            const geom = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(p1.x,p1.y,p1.z),
+              new THREE.Vector3(p2.x,p2.y,p2.z)
+            ]);
+            const line = new THREE.Line(geom, eMat);
+            edgeGroup.add(line);
+            edgeLines.push(line);
+          }
+
+          const geo = new THREE.BoxGeometry(0.7, 0.01, 0.9);
+          filesData.forEach((f, i) => {
+            const p = positions[i];
+            const hue = (f.tags && f.tags.includes('architecture')) ? 0.58 :
+                        (f.tags && (f.tags.includes('api')||f.tags.includes('backend'))) ? 0.55 :
+                        (f.tags && (f.tags.includes('devops')||f.tags.includes('docker'))) ? 0.5 :
+                        (f.tags && f.tags.includes('testing')) ? 0.12 :
+                        (f.tags && f.tags.includes('planning')) ? 0.0 : 0.08;
+            const lightness = 0.70 + hash(f.name+'light')*0.12;
+            const color = new THREE.Color().setHSL(hue, 0.3, lightness);
+            const mat = new THREE.MeshStandardMaterial({
+              color, roughness:0.6+hash(f.name+'rough')*0.3,
+              emissive: color.clone().multiplyScalar(0.06),
+              side:THREE.DoubleSide, transparent:true, opacity:0.88+hash(f.name+'opacity')*0.12
+            });
+            const page = new THREE.Mesh(geo, mat);
+            page.position.set(p.x, p.y, p.z);
+            const rotY = (i/n)*Math.PI*2 + hash(f.name+'rot')*0.5;
+            page.rotation.set(hash(f.name+'rx')*0.4-0.2, rotY, hash(f.name+'rz')*0.4-0.2);
+            page.userData = {
+              speed:0.08+hash(f.name+'speed')*0.15, floatAmp:0.06+hash(f.name+'amp')*0.08,
+              phaseX:hash(f.name+'px')*Math.PI*2, phaseY:hash(f.name+'py')*Math.PI*2, phaseZ:hash(f.name+'pz')*Math.PI*2,
+              rotSpeedX:(hash(f.name+'rsx')-0.5)*0.002, rotSpeedY:(hash(f.name+'rsy')-0.5)*0.002, rotSpeedZ:(hash(f.name+'rsz')-0.5)*0.002,
+              baseY:p.y, baseX:p.x, baseZ:p.z,
+              fileIdx:i, filePath:f.path, fileName:f.name,
+            };
+            page.castShadow = true;
+            pageGroup.add(page);
+            floatingPages.push(page);
+          });
+          refreshClickables();
+        }
+
+        // ─── Raycaster ───────────────────────────────────────────
+        const raycaster = new THREE.Raycaster();
+        const pointer = new THREE.Vector2();
+        const clickables = [];
+
+        function refreshClickables() {
+          clickables.length = 0;
+          pageGroup.children.forEach(c => {
+            if (c.isMesh) {
+              c.geometry.computeBoundingSphere();
+              clickables.push(c);
+            }
+          });
+        }
+
+        function doRaycast(clientX, clientY) {
+          pointer.x = (clientX / innerWidth) * 2 - 1;
+          pointer.y = -(clientY / innerHeight) * 2 + 1;
+          raycaster.setFromCamera(pointer, camera);
+          // Ensure clickable list is current
+          if (clickables.length !== pageGroup.children.length) refreshClickables();
+          const hits = raycaster.intersectObjects(clickables, false);
+          if (hits.length > 0) {
+            const obj = hits[0].object;
+            const fi = obj.userData.fileIdx;
+            if (fi !== undefined && files[fi]) {
+              // Flash feedback
+              const orig = obj.material.emissiveIntensity;
+              obj.material.emissiveIntensity = 0.8;
+              setTimeout(() => { obj.material.emissiveIntensity = orig; }, 200);
+              // Toggle: same page clicked again → close
+              if (openPath === files[fi].path && ed.classList.contains('open')) {
+                ed.classList.remove('open');
+                openPath = null;
+              } else {
+                openNote(files[fi].path);
+              }
+              return true;
+            }
+          }
+          return false;
+        }
+
+        function onCanvasPointer(e) {
+          doRaycast(e.clientX, e.clientY);
+        }
+
+        function bindCanvasEvents() {
+          renderer.domElement.removeEventListener('pointerup', onCanvasPointer);
+          renderer.domElement.addEventListener('pointerup', onCanvasPointer);
+          renderer.domElement.style.touchAction = 'none';
+        }
+        bindCanvasEvents();
+
+        // ─── Markdown Renderer ───────────────────────────────────
+        function renderMD(text) {
+          let h = text
+            .replace(/```(\w*)\n([\s\S]*?)```/g,(_,l,c)=>{const e=c.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');return`<pre><code>${e}</code></pre>`;})
+            .replace(/`([^`]+)`/g,'<code>$1</code>')
+            .replace(/^######\s+(.*)$/gm,'<h6>$1</h6>').replace(/^#####\s+(.*)$/gm,'<h5>$1</h5>').replace(/^####\s+(.*)$/gm,'<h4>$1</h4>')
+            .replace(/^###\s+(.*)$/gm,'<h3>$1</h3>').replace(/^##\s+(.*)$/gm,'<h2>$1</h2>').replace(/^#\s+(.*)$/gm,'<h1>$1</h1>')
+            .replace(/^>\s+(.*)$/gm,'<blockquote>$1</blockquote>').replace(/^---$/gm,'<hr>')
+            .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
+            .replace(/~~(.+?)~~/g,'<del>$1</del>')
+            .replace(/\[\[([^\]]+)\]\]/g,(_,n)=>{const t=fileMap.get(n+'.md');const fi=t?files.findIndex(f=>f.path===t.path):-1;return fi>=0?`<a class="wl" data-idx="${fi}">${n}</a>`:`<a class="wl" style="opacity:0.5">${n}</a>`;})
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>')
+            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g,'<img alt="$1" src="$2" />')
+            .replace(/- \[([ x])\]\s+(.*)$/gm,(_,c,t)=>`<label><input type="checkbox" ${c==='x'?'checked':''} disabled/>${t}</label>`)
+            .replace(/^[\*\-]\s+(.*)$/gm,'<li>$1</li>').replace(/^\d+\.\s+(.*)$/gm,'<li>$1</li>')
+            .replace(/#(\w[\w/-]*)/g,'<span class="tag">#$1</span>');
+          return '<p>'+h.replace(/\n\n/g,'</p><p>')+'</p>';
+        }
+
+        // ─── Editor (read-only preview) ──────────────────────────
+        const ed=document.getElementById('editor');
+        const edName=document.getElementById('ed-name');
+        const edStatus=document.getElementById('ed-status');
+        const edPreview=document.getElementById('editor-preview');
+        const edClose=document.getElementById('ed-close');
+        const edRefresh=document.getElementById('ed-refresh');
+        const edBL=document.getElementById('editor-backlinks');
+
+        async function openNote(path) {
+          openPath = path;
+          let f = fileMap.get(path);
+          if (!f) { f = files.find(fi => fi.path === path || fi.name === path); }
+          if (!f) { showToast('File not found: ' + path, '⚠️'); return; }
+          edName.textContent = f.name;
+          edStatus.textContent = 'Loading...';
+          try {
+            const data = await API.get('/api/files/' + encodeURIComponent(path));
+            edPreview.innerHTML = renderMD(data.content || '');
+            edPreview.classList.add('show');
+            edStatus.textContent = '';
+            // Bind wiki clicks
+            edPreview.querySelectorAll('.wl[data-idx]').forEach(el => {
+              el.addEventListener('click', () => {
+                const idx=parseInt(el.dataset.idx);
+                if (idx>=0 && files[idx]) openNote(files[idx].path);
+              });
+            });
+            // Backlinks
+            const bl = await API.get('/api/backlinks/' + encodeURIComponent(path));
+            edBL.innerHTML = '';
+            if (bl.length===0) { edBL.innerHTML='<div class="bl-hdr">No backlinks</div>'; }
+            else {
+              edBL.innerHTML=`<div class="bl-hdr">${bl.length} backlink${bl.length>1?'s':''}</div>`;
+              bl.forEach(b=>{const el=document.createElement('div');el.className='bl-it';el.innerHTML=`<span>↩</span> ${b.name}`;el.addEventListener('click',()=>openNote(b.path));edBL.appendChild(el);});
+            }
+          } catch(e) { edStatus.textContent='Error loading'; }
+          ed.classList.add('open');
+          document.getElementById('sidebar').classList.remove('open');
+          document.querySelectorAll('.file-item').forEach(el=>el.classList.remove('active'));
+          const sel=document.querySelector(`.file-item[data-path="${CSS.escape(path)}"]`);
+          if (sel) sel.classList.add('active');
+        }
+
+        edClose.addEventListener('click',()=>{ed.classList.remove('open');openPath=null;});
+        edRefresh.addEventListener('click',async ()=>{if(openPath){const data=await API.get('/api/files/'+encodeURIComponent(openPath));edPreview.innerHTML=renderMD(data.content||'');edStatus.textContent='';}});
+
+        document.addEventListener('keydown',e=>{if(e.key==='Escape')ed.classList.remove('open');});
+
+        // ─── Sidebar ─────────────────────────────────────────────
+        const sb=document.getElementById('sidebar');
+        const sbBtn=document.getElementById('sidebar-btn');
+        const sbSearch=document.getElementById('sidebar-search');
+        const fileListEl=document.getElementById('file-list');
+        const vaultNameEl=document.getElementById('vault-name');
+        const fileCountEl=document.getElementById('file-count');
+        const newBtn=document.getElementById('btn-new');
+
+        sbBtn.addEventListener('click',()=>sb.classList.toggle('open'));
+        document.getElementById('fs-btn').addEventListener('click',()=>{
+          if(!document.fullscreenElement){document.documentElement.requestFullscreen();}
+          else{document.exitFullscreen();}
+        });
+
+        function renderFileList(filter) {
+          fileListEl.innerHTML='';
+          const q=(filter||'').toLowerCase();
+          let count=0;
+          files.forEach(f=>{
+            if(q&&!f.name.toLowerCase().includes(q)) return;
+            count++;
+            const el=document.createElement('div');el.className='file-item';
+            if(f.path===openPath)el.classList.add('active');
+            el.dataset.path=f.path;
+            const bl=f.links?f.links.length:0;
+            el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}`;
+            el.addEventListener('click',()=>openNote(f.path));
+            fileListEl.appendChild(el);
+          });
+          fileCountEl.textContent=`${count} note${count!==1?'s':''}`;
+        }
+
+        sbSearch.addEventListener('input',()=>renderFileList(sbSearch.value));
+
+        newBtn.addEventListener('click',async()=>{
+          const name=prompt('Note name:');
+          if(!name)return;
+          try{const r=await API.post('/api/files',{name});await loadData();showToast(`Created "${name}"`);openNote(r.path);}catch(e){showToast('Error creating note','⚠️');}
+        });
+
+        // ─── Toast ───────────────────────────────────────────────
+        const toast=document.getElementById('toast');
+        let tt;
+        function showToast(m,i='📄'){toast.innerHTML=`<span style="margin-right:5px">${i}</span>${m}`;toast.classList.add('show');if(tt)clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),2500);}
+
+        // ─── Load data from API ──────────────────────────────────
+        async function loadData() {
+          try {
+            const status = await API.get('/api/status');
+            vaultNameEl.textContent = 'Vault: ' + status.vault.split(/[\\/]/).pop();
+            files = await API.get('/api/files');
+            fileMap.clear();
+            files.forEach(f => fileMap.set(f.path, f));
+            const graph = await API.get('/api/graph');
+            edges = graph.edges || [];
+            buildGraph(files, edges);
+            renderFileList(sbSearch.value);
+            document.getElementById('hud-count').textContent = `${files.length} note${files.length!==1?'s':''}`;
+            document.getElementById('hud-links').textContent = `${edges.length} connection${edges.length!==1?'s':''}`;
+            // Pages are immediately at full size and clickable
+            return true;
+          } catch(e) {
+            document.getElementById('hud-count').textContent = 'Offline';
+            document.getElementById('hud-links').textContent = '';
+            showToast('Cannot reach server. Is the backend running?', '⚠️');
+            return false;
+          }
+        }
+
+        // ─── Poll for external changes ───────────────────────────
+        let lastPoll = 0;
+        async function pollChanges() {
+          try {
+            const fresh = await API.get('/api/files');
+            // Check if any files changed
+            const changed = fresh.find(f => {
+              const old = fileMap.get(f.path);
+              return !old || old.mtime !== f.mtime;
+            });
+            if (changed) {
+              const prevLen = files.length;
+              files = fresh;
+              fileMap.clear();
+              files.forEach(f => fileMap.set(f.path, f));
+              if (files.length !== prevLen) {
+                const graph = await API.get('/api/graph');
+                edges = graph.edges || [];
+                buildGraph(files, edges);
+              }
+              renderFileList(sbSearch.value);
+              document.getElementById('hud-count').textContent = `${files.length} notes`;
+              document.getElementById('hud-links').textContent = `${edges.length} connections`;
+              // Reload open note if changed externally
+              if (openPath && edPreview.innerHTML) {
+                const data = await API.get('/api/files/' + encodeURIComponent(openPath));
+                const newHtml = renderMD(data.content || '');
+                if (newHtml !== edPreview.innerHTML) {
+                  edPreview.innerHTML = newHtml;
+                  edStatus.textContent = 'Updated from disk';
+                }
+              }
+            }
+          } catch {}
+        }
+
+        // ─── Animation ───────────────────────────────────────────
+        function animate() {
+          const t = performance.now()/1000;
+          floatingPages.forEach(p=>{
+            const d=p.userData, et=t*d.speed;
+            p.position.x=d.baseX+Math.sin(et*0.7+d.phaseX)*d.floatAmp*0.15;
+            p.position.y=d.baseY+Math.sin(et*0.9+d.phaseY)*d.floatAmp*0.2;
+            p.position.z=d.baseZ+Math.cos(et*0.6+d.phaseZ)*d.floatAmp*0.15;
+            p.rotation.x+=d.rotSpeedX*0.5+Math.sin(et*0.5+d.phaseX)*0.0005;
+            p.rotation.y+=d.rotSpeedY*0.5+Math.sin(et*0.4+d.phaseY)*0.0005;
+            p.rotation.z+=d.rotSpeedZ*0.5+Math.cos(et*0.6+d.phaseZ)*0.0005;
+            const isActive = d.filePath === openPath;
+            const breathe = 1+Math.sin(et*0.3+d.phaseX)*0.015;
+            const s = isActive ? 1.4 + Math.sin(et*0.6)*0.06 : breathe;
+            p.scale.set(s, isActive ? 1.4 + Math.sin(et*0.6+0.5)*0.06 : 1, s);
+          });
+          bg.position.y=-0.4+Math.sin(t*0.4)*0.06;
+          bg.rotation.z=Math.sin(t*0.25)*0.015;
+          bg.rotation.x=Math.sin(t*0.35)*0.008;
+          pm.rotation.y+=0.0002; sm.rotation.y-=0.0003;
+          controls.update();
+          renderer.render(scene,camera);
+          requestAnimationFrame(animate);
+        }
+
+        // ─── Init ────────────────────────────────────────────────
+        async function init() {
+          const ok = await loadData();
+          if (ok) showToast(`Loaded ${files.length} notes`, '✦');
+          animate();
+          // Poll for external changes every 3s
+          setInterval(pollChanges, 3000);
+        }
+
+        init();
+
+        window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+        console.log('✦ Magmabase fullstack — backend API connected');
+    </script>
+</body>
+</html>
