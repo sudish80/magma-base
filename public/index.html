@@ -169,6 +169,22 @@
         }
         #hud{pointer-events:none;user-select:none}
         #hud span{pointer-events:none}
+
+        /* Tag cloud */
+        #tag-cloud{border-top:1px solid var(--border);padding:8px 12px;max-height:160px;overflow-y:auto;flex-shrink:0}
+        #tag-cloud .tag-hdr{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;}
+        #tag-list{display:flex;flex-wrap:wrap;gap:4px}
+        #tag-list .tag-item{padding:2px 8px;font-size:11px;border-radius:4px;cursor:pointer;background:var(--accent-muted);color:var(--accent);transition:all 0.15s;white-space:nowrap}
+        #tag-list .tag-item:hover{background:var(--accent);color:#fff}
+        #tag-list .tag-item.active{background:var(--accent);color:#fff}
+        #tag-list .tag-item .tag-count{font-size:10px;opacity:0.7;margin-left:2px}
+
+        /* Context menu */
+        #ctx-menu{position:fixed;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:none;font-size:12px}
+        #ctx-menu .ctx-item{padding:6px 14px;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:8px;border:none;background:none;width:100%;text-align:left;font-family:var(--font);font-size:12px}
+        #ctx-menu .ctx-item:hover{background:var(--accent-muted)}
+        #ctx-menu .ctx-item.ctx-danger{color:var(--red)}
+        #ctx-menu .ctx-item.ctx-danger:hover{background:rgba(224,108,117,0.15)}
     </style>
 </head>
 <body>
@@ -185,6 +201,10 @@
         </div>
         <input id="sidebar-search" type="text" placeholder="Search notes..." />
         <div id="file-list"></div>
+        <div id="tag-cloud">
+          <div class="tag-hdr">Tags <span id="tag-toggle" style="cursor:pointer;font-size:10px;margin-left:4px;color:var(--text-dim)">▾ hide</span></div>
+          <div id="tag-list"></div>
+        </div>
     </div>
 
     <div id="editor">
@@ -206,6 +226,13 @@
     </div>
 
     <div id="toast"></div>
+
+    <div id="ctx-menu" style="display:none">
+      <button class="ctx-item" data-action="open">Open</button>
+      <button class="ctx-item" data-action="rename">Rename</button>
+      <button class="ctx-item ctx-danger" data-action="delete">Delete</button>
+      <button class="ctx-item" data-action="copylink">Copy Link</button>
+    </div>
 
     <script type="importmap">
         { "imports": { "three": "https://unpkg.com/three@0.126.0/build/three.module.js" } }
@@ -240,8 +267,15 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-        renderer.domElement.style.cssText = 'position:fixed;top:0;left:0;z-index:1;cursor:pointer;touch-action:none';
         document.body.prepend(renderer.domElement);
+        renderer.domElement.style.width = innerWidth + 'px';
+        renderer.domElement.style.height = innerHeight + 'px';
+        renderer.domElement.style.position = 'fixed';
+        renderer.domElement.style.top = '0';
+        renderer.domElement.style.left = '0';
+        renderer.domElement.style.zIndex = '1';
+        renderer.domElement.style.cursor = 'pointer';
+        renderer.domElement.style.touchAction = 'none';
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -298,19 +332,55 @@
 
           if (!filesData || filesData.length === 0) return;
           const n = filesData.length;
-          // Small deterministic hash for stable positioning across rebuilds
           function hash(s) { let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;} return Math.abs(h)/2147483647; }
           const spacing = 1.8 + Math.min(n, 20) * 0.25;
-          const positions = [];
 
-          filesData.forEach((f, i) => {
+          // Force-directed layout
+          const pos = [];
+          for (let i = 0; i < n; i++) {
             const angle = (i / n) * Math.PI * 2;
-            const r = spacing + hash(f.name+'offset') * 0.3;
-            const x = Math.cos(angle)*r;
-            const z = Math.sin(angle)*r*0.75;
-            const y = hash(f.name+'y')*1.2 + (i%3-1)*0.3;
-            positions.push({ x, y, z });
-          });
+            pos.push({
+              x: Math.cos(angle) * spacing,
+              y: (hash(filesData[i].name+'y') - 0.5) * 0.5,
+              z: Math.sin(angle) * spacing * 0.75
+            });
+          }
+          const adj = new Map();
+          if (edgesData) {
+            for (const e of edgesData) {
+              const si = filesData.findIndex(f => f.path === e.source);
+              const ti = filesData.findIndex(f => f.path === e.target);
+              if (si >= 0 && ti >= 0) {
+                if (!adj.has(si)) adj.set(si, []);
+                if (!adj.has(ti)) adj.set(ti, []);
+                adj.get(si).push(ti);
+                adj.get(ti).push(si);
+              }
+            }
+          }
+          for (let it = 0; it < 50; it++) {
+            const forces = pos.map(() => ({x:0, y:0, z:0}));
+            for (let i = 0; i < n; i++) {
+              for (let j = i+1; j < n; j++) {
+                const dx = pos[j].x-pos[i].x, dy = pos[j].y-pos[i].y, dz = pos[j].z-pos[i].z;
+                const dist = Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
+                const f = 2.0/(dist*dist);
+                forces[i].x -= f*dx/dist; forces[i].y -= f*dy/dist; forces[i].z -= f*dz/dist;
+                forces[j].x += f*dx/dist; forces[j].y += f*dy/dist; forces[j].z += f*dz/dist;
+              }
+            }
+            for (const [i, ns] of adj) for (const j of ns) {
+              const dx = pos[j].x-pos[i].x, dy = pos[j].y-pos[i].y, dz = pos[j].z-pos[i].z;
+              const dist = Math.sqrt(dx*dx+dy*dy+dz*dz)+0.01;
+              const f = 0.008*(dist-0.5);
+              forces[i].x += f*dx/dist; forces[i].y += f*dy/dist; forces[i].z += f*dz/dist;
+              forces[j].x -= f*dx/dist; forces[j].y -= f*dy/dist; forces[j].z -= f*dz/dist;
+            }
+            for (let i = 0; i < n; i++) {
+              forces[i].x -= pos[i].x*0.002; forces[i].y -= pos[i].y*0.002; forces[i].z -= pos[i].z*0.002;
+              pos[i].x += forces[i].x*0.5; pos[i].y += forces[i].y*0.5; pos[i].z += forces[i].z*0.5;
+            }
+          }
 
           const eset = new Set();
           const uedges = [];
@@ -326,7 +396,7 @@
             const si = filesData.findIndex(f => f.path === e.source);
             const ti = filesData.findIndex(f => f.path === e.target);
             if (si<0||ti<0) continue;
-            const p1=positions[si], p2=positions[ti];
+            const p1=pos[si], p2=pos[ti];
             const geom = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(p1.x,p1.y,p1.z),
               new THREE.Vector3(p2.x,p2.y,p2.z)
@@ -338,7 +408,7 @@
 
           const geo = new THREE.BoxGeometry(0.7, 0.01, 0.9);
           filesData.forEach((f, i) => {
-            const p = positions[i];
+            const p = pos[i];
             const hue = (f.tags && f.tags.includes('architecture')) ? 0.58 :
                         (f.tags && (f.tags.includes('api')||f.tags.includes('backend'))) ? 0.55 :
                         (f.tags && (f.tags.includes('devops')||f.tags.includes('docker'))) ? 0.5 :
@@ -423,6 +493,69 @@
         }
         bindCanvasEvents();
 
+        // ─── Context Menu ────────────────────────────────────────
+        const ctxMenu = document.getElementById('ctx-menu');
+        let ctxFile = null;
+
+        renderer.domElement.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          pointer.x = (e.clientX / innerWidth) * 2 - 1;
+          pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+          raycaster.setFromCamera(pointer, camera);
+          if (clickables.length !== pageGroup.children.length) refreshClickables();
+          const hits = raycaster.intersectObjects(clickables, false);
+          if (hits.length > 0) {
+            const obj = hits[0].object;
+            const fi = obj.userData.fileIdx;
+            if (fi !== undefined && files[fi]) {
+              ctxFile = files[fi];
+              ctxMenu.style.display = 'block';
+              ctxMenu.style.left = e.clientX + 'px';
+              ctxMenu.style.top = e.clientY + 'px';
+              return;
+            }
+          }
+          ctxMenu.style.display = 'none';
+        });
+
+        document.addEventListener('click', (e) => {
+          if (!ctxMenu.contains(e.target)) ctxMenu.style.display = 'none';
+        });
+
+        ctxMenu.querySelectorAll('.ctx-item').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const action = btn.dataset.action;
+            if (!ctxFile) return;
+            ctxMenu.style.display = 'none';
+            if (action === 'open') {
+              openNote(ctxFile.path);
+            } else if (action === 'rename') {
+              const newName = prompt('New name (without .md):', ctxFile.name);
+              if (!newName || newName === ctxFile.name) return;
+              try {
+                const data = await API.get('/api/files/' + encodeURIComponent(ctxFile.path));
+                await API.post('/api/files', { name: newName, content: data.content });
+                await API.del('/api/files/' + encodeURIComponent(ctxFile.path));
+                await loadData();
+                showToast(`Renamed to "${newName}"`);
+              } catch(e) { showToast('Error renaming', '⚠️'); }
+            } else if (action === 'delete') {
+              if (!confirm(`Delete "${ctxFile.name}"?`)) return;
+              try {
+                await API.del('/api/files/' + encodeURIComponent(ctxFile.path));
+                if (openPath === ctxFile.path) { ed.classList.remove('open'); openPath = null; }
+                await loadData();
+                showToast(`Deleted "${ctxFile.name}"`);
+              } catch(e) { showToast('Error deleting', '⚠️'); }
+            } else if (action === 'copylink') {
+              try {
+                await navigator.clipboard.writeText(`[[${ctxFile.name}]]`);
+                showToast('Link copied to clipboard');
+              } catch(e) { showToast('Failed to copy', '⚠️'); }
+            }
+          });
+        });
+
         // ─── Markdown Renderer ───────────────────────────────────
         function renderMD(text) {
           let h = text
@@ -456,6 +589,8 @@
           let f = fileMap.get(path);
           if (!f) { f = files.find(fi => fi.path === path || fi.name === path); }
           if (!f) { showToast('File not found: ' + path, '⚠️'); return; }
+          ed.classList.add('open');
+          editorJustOpened = true; setTimeout(() => { editorJustOpened = false; }, 100);
           edName.textContent = f.name;
           edStatus.textContent = 'Loading...';
           try {
@@ -479,7 +614,6 @@
               bl.forEach(b=>{const el=document.createElement('div');el.className='bl-it';el.innerHTML=`<span>↩</span> ${b.name}`;el.addEventListener('click',()=>openNote(b.path));edBL.appendChild(el);});
             }
           } catch(e) { edStatus.textContent='Error loading'; }
-          ed.classList.add('open');
           document.getElementById('sidebar').classList.remove('open');
           document.querySelectorAll('.file-item').forEach(el=>el.classList.remove('active'));
           const sel=document.querySelector(`.file-item[data-path="${CSS.escape(path)}"]`);
@@ -489,7 +623,17 @@
         edClose.addEventListener('click',()=>{ed.classList.remove('open');openPath=null;});
         edRefresh.addEventListener('click',async ()=>{if(openPath){const data=await API.get('/api/files/'+encodeURIComponent(openPath));edPreview.innerHTML=renderMD(data.content||'');edStatus.textContent='';}});
 
-        document.addEventListener('keydown',e=>{if(e.key==='Escape')ed.classList.remove('open');});
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'){ed.classList.remove('open');openPath=null;}});
+
+        // Click outside editor to close
+        let editorJustOpened = false;
+        document.addEventListener('click', (e) => {
+          if (!ed.classList.contains('open')) return;
+          if (editorJustOpened) { editorJustOpened = false; return; }
+          if (ed.contains(e.target)) return;
+          ed.classList.remove('open');
+          openPath = null;
+        });
 
         // ─── Sidebar ─────────────────────────────────────────────
         const sb=document.getElementById('sidebar');
@@ -512,6 +656,7 @@
           let count=0;
           files.forEach(f=>{
             if(q&&!f.name.toLowerCase().includes(q)) return;
+            if(selectedTag && (!f.tags || !f.tags.includes(selectedTag))) return;
             count++;
             const el=document.createElement('div');el.className='file-item';
             if(f.path===openPath)el.classList.add('active');
@@ -524,7 +669,28 @@
           fileCountEl.textContent=`${count} note${count!==1?'s':''}`;
         }
 
-        sbSearch.addEventListener('input',()=>renderFileList(sbSearch.value));
+        let searchTimeout = null;
+        sbSearch.addEventListener('input', () => {
+          renderFileList(sbSearch.value);
+          if (searchTimeout) clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(async () => {
+            const q = sbSearch.value.trim();
+            if (q.length < 2) return;
+            try {
+              const apiResults = await API.get('/api/search?q=' + encodeURIComponent(q));
+              const existingNames = new Set(files.filter(f => f.name.toLowerCase().includes(q)).map(f => f.name));
+              const extra = apiResults.filter(r => !existingNames.has(r.name));
+              if (extra.length === 0) return;
+              extra.forEach(r => {
+                const el = document.createElement('div'); el.className = 'file-item';
+                el.dataset.path = r.path;
+                el.innerHTML = `<span class="fi-icon">🔍</span><span class="fi-name">${r.name}</span><span style="font-size:10px;color:var(--text-dim)">content</span>`;
+                el.addEventListener('click', () => openNote(r.path));
+                fileListEl.appendChild(el);
+              });
+            } catch {}
+          }, 250);
+        });
 
         newBtn.addEventListener('click',async()=>{
           const name=prompt('Note name:');
@@ -536,6 +702,38 @@
         const toast=document.getElementById('toast');
         let tt;
         function showToast(m,i='📄'){toast.innerHTML=`<span style="margin-right:5px">${i}</span>${m}`;toast.classList.add('show');if(tt)clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),2500);}
+
+        // ─── Tag Cloud ───────────────────────────────────────────
+        let selectedTag = null;
+        let tagData = {};
+
+        function renderTagCloud() {
+          const el = document.getElementById('tag-list');
+          const tags = Object.entries(tagData).sort((a,b) => b[1]-a[1]);
+          if (tags.length === 0) { el.innerHTML = '<span style="font-size:11px;color:var(--text-dim)">No tags</span>'; return; }
+          el.innerHTML = tags.map(([t,c]) =>
+            `<span class="tag-item${selectedTag===t?' active':''}" data-tag="${t}">#${t}<span class="tag-count">${c}</span></span>`
+          ).join('');
+          el.querySelectorAll('.tag-item').forEach(el => {
+            el.addEventListener('click', () => {
+              const t = el.dataset.tag;
+              selectedTag = selectedTag === t ? null : t;
+              renderTagCloud();
+              renderFileList(sbSearch.value);
+            });
+          });
+        }
+
+        document.getElementById('tag-toggle').addEventListener('click', () => {
+          const tc = document.getElementById('tag-cloud');
+          const tl = document.getElementById('tag-list');
+          const toggler = document.getElementById('tag-toggle');
+          if (tl.style.display === 'none') {
+            tl.style.display = ''; toggler.textContent = '▾ hide';
+          } else {
+            tl.style.display = 'none'; toggler.textContent = '▸ show';
+          }
+        });
 
         // ─── Load data from API ──────────────────────────────────
         async function loadData() {
@@ -549,9 +747,10 @@
             edges = graph.edges || [];
             buildGraph(files, edges);
             renderFileList(sbSearch.value);
+            tagData = await API.get('/api/tags');
+            renderTagCloud();
             document.getElementById('hud-count').textContent = `${files.length} note${files.length!==1?'s':''}`;
             document.getElementById('hud-links').textContent = `${edges.length} connection${edges.length!==1?'s':''}`;
-            // Pages are immediately at full size and clickable
             return true;
           } catch(e) {
             document.getElementById('hud-count').textContent = 'Offline';
@@ -582,8 +781,10 @@
                 buildGraph(files, edges);
               }
               renderFileList(sbSearch.value);
-              document.getElementById('hud-count').textContent = `${files.length} notes`;
-              document.getElementById('hud-links').textContent = `${edges.length} connections`;
+              tagData = await API.get('/api/tags');
+              renderTagCloud();
+              document.getElementById('hud-count').textContent = `${files.length} note${files.length!==1?'s':''}`;
+              document.getElementById('hud-links').textContent = `${edges.length} connection${edges.length!==1?'s':''}`;
               // Reload open note if changed externally
               if (openPath && edPreview.innerHTML) {
                 const data = await API.get('/api/files/' + encodeURIComponent(openPath));
