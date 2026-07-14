@@ -8,8 +8,8 @@
     <title>Magmabase – Fullstack Knowledge Base</title>
     <style>
         :root {
-            --bg: #1e1e1e; --sidebar: #252525; --surface: #2a2a2a;
-            --border: #3a3a3a; --text: #dcddde; --text-muted: #7f7f7f;
+            --bg: #0d0d0d; --sidebar: #141414; --surface: #1a1a1a;
+            --border: #2a2a2a; --text: #e0e0e0; --text-muted: #888888;
             --text-dim: #5a5a5a; --accent: #6c8ccf; --accent-hover: #7ea3e6;
             --accent-muted: rgba(108,140,207,0.15); --green: #98c379;
             --orange: #d19a66; --purple: #c678dd; --cyan: #56b6c2; --red: #e06c75;
@@ -230,7 +230,6 @@
         .sb-offline{color:var(--red)}
 
         /* Light theme */
-        :root.light{--bg:#f8f9fa;--sidebar:#ffffff;--surface:#f0f0f0;--border:#ddd;--text:#222;--text-muted:#666;--text-dim:#999;--accent:#4a6fa5;--accent-hover:#3a5f95;--accent-muted:rgba(74,111,165,0.12)}
 
         /* Orphan indicator */
         .fi-orphan{font-size:9px;color:var(--text-dim);margin-left:auto;opacity:0.5}
@@ -408,7 +407,7 @@
 
         // ─── Three.js Scene ──────────────────────────────────────
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1e1e1e);
+        scene.background = new THREE.Color(0x0d0d0d);
 
         const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 50);
         camera.position.set(3, 1.8, 4.5);
@@ -596,7 +595,7 @@
             const labelCanvas = document.createElement('canvas');
             labelCanvas.width = 256; labelCanvas.height = 48;
             const lctx = labelCanvas.getContext('2d');
-            lctx.fillStyle = 'rgba(30,30,30,0.7)';
+            lctx.fillStyle = 'rgba(13,13,13,0.8)';
             lctx.roundRect ? lctx.roundRect(4,4,248,40,6) : 0;
             if (lctx.roundRect) { lctx.fill(); } else { lctx.fillRect(4,4,248,40); }
             lctx.fillStyle = '#dcddde';
@@ -1110,7 +1109,7 @@
         const cmds = [
           { id: 'new-note', label: 'New Note', keys: 'Ctrl+N', action: () => newBtn.click() },
           { id: 'toggle-sidebar', label: 'Toggle Sidebar', keys: 'Ctrl+B', action: () => sbBtn.click() },
-          { id: 'toggle-theme', label: 'Toggle Theme', keys: '', action: () => toggleTheme() },
+
           { id: 'fullscreen', label: 'Toggle Fullscreen', keys: 'F11', action: () => document.getElementById('fs-btn').click() },
           { id: 'focus-graph', label: 'Focus Graph on Current Note', keys: '', action: () => document.getElementById('ed-focus-btn').click() },
           { id: 'close-editor', label: 'Close Editor', keys: 'Esc', action: () => { ed.classList.remove('open'); openPath = null; } },
@@ -1450,14 +1449,7 @@
           } catch(e) { showToast('Error creating note', '⚠️'); }
         });
 
-        // ─── Theme Toggle ─────────────────────────────────────────
-        function toggleTheme() {
-          isLight = !isLight;
-          document.documentElement.classList.toggle('light', isLight);
-          localStorage.setItem('mb-theme', isLight ? 'light' : 'dark');
-        }
-        let isLight = localStorage.getItem('mb-theme') === 'light';
-        if (isLight) document.documentElement.classList.add('light');
+
 
         // ─── Recent Notes (localStorage) ─────────────────────────
         function getRecent() {
