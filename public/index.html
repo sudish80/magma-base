@@ -1292,9 +1292,6 @@
           input.click();
         });
 
-        const FILE_ICONS = ['📝','📋','📌','📎','🔖','📑','🗒️','📓','📕','📗','📘','📙','📰','🎯','💡','⚡','🔧','🎨','📊','🧩','🔬','📈','🎯','🛠️','📚'];
-        function fileIcon(name) { let h=0; for(let i=0;i<name.length;i++){h=((h<<5)-h)+name.charCodeAt(i);h|=0;} return FILE_ICONS[Math.abs(h)%FILE_ICONS.length]; }
-
         function renderFileList(filter) {
           fileListEl.innerHTML='';
           const q=(filter||'').toLowerCase();
@@ -1340,7 +1337,7 @@
                 el.dataset.path=f.path;
                 const bl=f.links?f.links.length:0;
                 const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-                el.innerHTML=`<span class="fi-icon">${fileIcon(f.name)}</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
+                el.innerHTML=`<span class="fi-icon">📂</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
                 el.addEventListener('click',()=>openNote(f.path));
                 if (level > 0) el.style.paddingLeft = (24 + level * 12) + 'px';
                 fileListEl.appendChild(el);
@@ -1372,7 +1369,7 @@
                 el.dataset.path=f.path;
                 const bl=f.links?f.links.length:0;
                 const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-                el.innerHTML=`<span class="fi-icon">${fileIcon(f.name)}</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
+                el.innerHTML=`<span class="fi-icon">📂</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
                 el.addEventListener('click',()=>openNote(f.path));
                 el.style.paddingLeft = (24 + level * 12) + 'px';
                 container.appendChild(el);
@@ -1391,7 +1388,7 @@
               el.dataset.path=f.path;
               const bl=f.links?f.links.length:0;
               const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-              el.innerHTML=`<span class="fi-icon">${fileIcon(f.name)}</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
+              el.innerHTML=`<span class="fi-icon">📂</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
               el.addEventListener('click',()=>openNote(f.path));
               fileListEl.appendChild(el);
             });
@@ -1536,7 +1533,7 @@
         async function loadData() {
           try {
             const status = await API.get('/api/status');
-            vaultNameEl.textContent = 'Vault: ' + status.vault.split(/[\\/]/).pop();
+            vaultNameEl.textContent = 'Shulker Vault: ' + status.vault.split(/[\\/]/).pop();
             files = await API.get('/api/files');
             fileMap.clear();
             files.forEach(f => fileMap.set(f.path, f));
