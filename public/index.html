@@ -564,6 +564,7 @@
                         (f.tags && f.tags.includes('planning')) ? 0.0 : 0.08;
             const hue = f.mtime ? (tagHue * 0.4 + ageHue * 0.6) : tagHue;
             const lightness = 0.70 + hash(f.name+'light')*0.12;
+            const color = new THREE.Color().setHSL(hue, 0.45, lightness);
             const mat = new THREE.MeshStandardMaterial({
               color, roughness:0.6+hash(f.name+'rough')*0.3,
               emissive: color.clone().multiplyScalar(0.06),
@@ -1218,20 +1219,35 @@
             const mdFiles = [];
             for (let i = 0; i < filesList.length; i++) {
               const file = filesList[i];
-              if (file.name.endsWith('.md')) {
-                mdFiles.push({ name: file.name, file });
+              if (file.name.endsWith('.md') && file.webkitRelativePath) {
+                // webkitRelativePath includes the top-level folder name; strip it
+                const parts = file.webkitRelativePath.split(/[\\/]/);
+                const relPath = parts.slice(1).join('/').replace(/\.md$/, '');
+                mdFiles.push({ name: file.name.replace(/\.md$/, ''), relPath, file });
               }
             }
             if (mdFiles.length === 0) { showToast('No .md files found', '⚠️'); return; }
+            // Confirm and clear existing vault files before importing new vault
+            if (files.length > 0) {
+              if (!confirm(`Replace all ${files.length} notes with ${mdFiles.length} notes from the new folder?`)) return;
+              for (const f of files) {
+                try { await API.del('/api/files/' + encodeURIComponent(f.path)); } catch {}
+              }
+            }
             for (const mf of mdFiles) {
               const content = await mf.file.text();
-              const safeName = mf.name.replace(/\.md$/, '');
+              const fileName = mf.relPath; // preserves subdirectory structure
               try {
-                await API.post('/api/files', { name: safeName, content });
+                await API.post('/api/files', { name: fileName, content });
               } catch (e) {
-                const existing = files.find(f => f.name === safeName);
+                // If file already exists, overwrite it
+                const searchPath = fileName + '.md';
+                const existing = files.find(f => f.path === searchPath);
                 if (existing) {
                   await API.put('/api/files/' + encodeURIComponent(existing.path), { content });
+                } else {
+                  // Try with flat name as fallback
+                  await API.post('/api/files', { name: mf.name, content }).catch(() => {});
                 }
               }
             }
@@ -1286,7 +1302,7 @@
                 el.dataset.path=f.path;
                 const bl=f.links?f.links.length:0;
                 const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-                el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanolLabel}`;
+                el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
                 el.addEventListener('click',()=>openNote(f.path));
                 if (level > 0) el.style.paddingLeft = (24 + level * 12) + 'px';
                 fileListEl.appendChild(el);
@@ -1318,7 +1334,7 @@
                 el.dataset.path=f.path;
                 const bl=f.links?f.links.length:0;
                 const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-                el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanolLabel}`;
+                el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
                 el.addEventListener('click',()=>openNote(f.path));
                 el.style.paddingLeft = (24 + level * 12) + 'px';
                 container.appendChild(el);
@@ -1337,7 +1353,7 @@
               el.dataset.path=f.path;
               const bl=f.links?f.links.length:0;
               const orphanLabel = f._orphan ? '<span class="fi-orphan" title="No connections">○</span>' : '';
-              el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanolLabel}`;
+              el.innerHTML=`<span class="fi-icon">📄</span><span class="fi-name">${f.name}</span>${bl?`<span class="fi-links">${bl}→</span>`:''}${orphanLabel}`;
               el.addEventListener('click',()=>openNote(f.path));
               fileListEl.appendChild(el);
             });
@@ -1581,7 +1597,6 @@
         async function init() {
           const ok = await loadData();
           if (ok) showToast(`Loaded ${files.length} notes`, '✦');
-          updateStatusBar(true);
           renderRecent();
           animate();
           setInterval(pollChanges, 3000);

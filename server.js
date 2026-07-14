@@ -311,6 +311,7 @@ app.post('/api/files', (req, res) => {
     return res.status(409).json({ error: 'File already exists' });
   }
   content = content || `# ${name}\n\n`;
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, 'utf-8');
   indexFile(filePath);
   res.json({ name, path: fileName, message: 'Created' });
