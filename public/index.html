@@ -29,9 +29,10 @@
             background:rgba(30,30,30,0.85);border:1px solid var(--border);
             color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius);
             display:flex;align-items:center;justify-content:center;
-            font-size:18px;backdrop-filter:blur(6px)
+            cursor:pointer;backdrop-filter:blur(6px)
         }
         #sidebar-btn:hover{background:var(--surface);color:var(--text)}
+        #sidebar-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
         #fs-btn{
             position:fixed;top:12px;right:12px;z-index:100;
             background:rgba(30,30,30,0.85);border:1px solid var(--border);
@@ -265,9 +266,14 @@
         #sidebar-resize:hover,#sidebar-resize.dragging{background:var(--accent)}
 
         /* Command palette */
-        #cmd-palette{position:fixed;top:80px;left:50%;transform:translateX(-50%);width:400px;max-height:60vh;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 16px 60px rgba(0,0,0,0.6);display:none;flex-direction:column}
+        .cp-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:299;display:none}
+        .cp-overlay.show{display:block}
+        #cmd-palette{position:fixed;top:80px;left:50%;width:400px;max-height:60vh;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 16px 60px rgba(0,0,0,0.6);display:none;flex-direction:column}
         #cmd-palette.show{display:flex}
-        #cmd-input{width:100%;padding:10px 14px;background:var(--bg);border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;font-family:var(--font);outline:none;border-radius:8px 8px 0 0}
+        #cmd-drag-handle{cursor:grab;padding:6px 14px;background:var(--bg);border-radius:8px 8px 0 0;display:flex;align-items:center;gap:8px;user-select:none;font-size:11px;color:var(--text-dim);border-bottom:1px solid var(--border)}
+        #cmd-drag-handle:active{cursor:grabbing}
+        #cmd-drag-handle svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+        #cmd-input{width:100%;padding:10px 14px;background:var(--bg);border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;font-family:var(--font);outline:none}
         #cmd-results{overflow-y:auto;padding:4px 0}
         .cmd-item{padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px}
         .cmd-item:hover,.cmd-item.selected{background:var(--accent-muted)}
@@ -285,12 +291,14 @@
 
     <div id="graph-label">click a node to open · ☰ sidebar · drag to orbit</div>
 
+    <div class="cp-overlay" id="cp-overlay"></div>
     <div id="cmd-palette">
+      <div id="cmd-drag-handle"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg> Commands</div>
       <input id="cmd-input" type="text" placeholder="Type a command..." autocomplete="off" />
       <div id="cmd-results"></div>
     </div>
 
-    <button id="sidebar-btn">☰</button>
+    <button id="sidebar-btn" title="Toggle sidebar"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></button>
     <button id="fs-btn" title="Toggle fullscreen">⛶</button>
     <button id="theme-btn" title="Toggle theme" style="position:fixed;top:12px;right:56px;z-index:100;background:rgba(30,30,30,0.85);border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:16px;backdrop-filter:blur(6px);transition:all 0.15s">☀</button>
 
@@ -1098,6 +1106,8 @@
         const cmdPalette = document.getElementById('cmd-palette');
         const cmdInput = document.getElementById('cmd-input');
         const cmdResults = document.getElementById('cmd-results');
+        const cmdOverlay = document.getElementById('cp-overlay');
+        const cmdDragHandle = document.getElementById('cmd-drag-handle');
         const cmds = [
           { id: 'new-note', label: 'New Note', keys: 'Ctrl+N', action: () => newBtn.click() },
           { id: 'toggle-sidebar', label: 'Toggle Sidebar', keys: 'Ctrl+B', action: () => sbBtn.click() },
@@ -1108,8 +1118,12 @@
         ];
         let cmdSelectedIdx = -1;
 
+        let cmdOffsetX = 0, cmdOffsetY = 0;
+        let cmdDragging = false;
+
         function showCmdPalette() {
           cmdPalette.classList.add('show');
+          cmdOverlay.classList.add('show');
           cmdInput.value = '';
           cmdResults.innerHTML = '';
           cmdSelectedIdx = -1;
@@ -1117,7 +1131,7 @@
           setTimeout(() => cmdInput.focus(), 50);
         }
 
-        function hideCmdPalette() { cmdPalette.classList.remove('show'); }
+        function hideCmdPalette() { cmdPalette.classList.remove('show'); cmdOverlay.classList.remove('show'); }
 
         function renderCmds(list) {
           cmdResults.innerHTML = list.map((c, i) =>
@@ -1140,6 +1154,28 @@
           if (e.key === 'Enter' && cmdSelectedIdx >= 0) { e.preventDefault(); const items = cmdResults.querySelectorAll('.cmd-item'); if (items[cmdSelectedIdx]) { hideCmdPalette(); cmds[parseInt(items[cmdSelectedIdx].dataset.idx)].action(); } }
           if (e.key === 'Escape') hideCmdPalette();
         });
+
+        // Drag command palette
+        cmdDragHandle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const rect = cmdPalette.getBoundingClientRect();
+          cmdOffsetX = e.clientX - rect.left;
+          cmdOffsetY = e.clientY - rect.top;
+          cmdDragging = true;
+          cmdDragHandle.style.cursor = 'grabbing';
+        });
+        document.addEventListener('mousemove', (e) => {
+          if (!cmdDragging) return;
+          cmdPalette.style.left = (e.clientX - cmdOffsetX) + 'px';
+          cmdPalette.style.top = (e.clientY - cmdOffsetY) + 'px';
+          cmdPalette.style.transform = 'none';
+        });
+        document.addEventListener('mouseup', () => {
+          if (cmdDragging) { cmdDragging = false; cmdDragHandle.style.cursor = 'grab'; }
+        });
+
+        // Close on overlay click
+        cmdOverlay.addEventListener('click', () => hideCmdPalette());
 
         document.addEventListener('keydown', e => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); showCmdPalette(); }
