@@ -100,7 +100,7 @@ function walkDir(dir) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+      if (!entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== '_trash') {
         walkDir(fullPath);
       }
     } else if (entry.name.endsWith('.md')) {
@@ -326,14 +326,27 @@ app.put('/api/files/:name(*)', (req, res) => {
   res.json({ message: 'Saved' });
 });
 
-// Delete file
+// Delete file (moves to _trash/ instead of permanent delete)
 app.delete('/api/files/:name(*)', (req, res) => {
   const entry = fileIndex.get(req.params.name);
   if (!entry) return res.status(404).json({ error: 'File not found' });
   const filePath = path.join(VAULT_PATH, req.params.name);
-  fs.unlinkSync(filePath);
-  removeFile(filePath);
-  res.json({ message: 'Deleted' });
+  // Create _trash directory if needed
+  const trashDir = path.join(VAULT_PATH, '_trash');
+  if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true });
+  // Move file to trash with timestamp to avoid name collisions
+  const trashName = entry.name + '_' + Date.now() + '.md';
+  const trashPath = path.join(trashDir, trashName);
+  try {
+    fs.renameSync(filePath, trashPath);
+    removeFile(filePath);
+    res.json({ message: 'Moved to trash', trash: trashName });
+  } catch(e) {
+    // Fallback to hard delete if move fails
+    fs.unlinkSync(filePath);
+    removeFile(filePath);
+    res.json({ message: 'Deleted permanently' });
+  }
 });
 
 // Graph data

@@ -1,0 +1,10 @@
+{
+  "name": "Magmabase",
+  "short_name": "Magmabase",
+  "description": "Local-first knowledge base with 3D graph visualization",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1e1e",
+  "theme_color": "#1e1e1e",
+  "icons": []
+}
